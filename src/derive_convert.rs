@@ -67,6 +67,8 @@ struct ConversionMeta {
     source_name: Path,
     target_name: Path,
     method: ConversionMethod,
+    // Wether we add ..Default::default() to conversions
+    default_allowed: bool,
 }
 
 enum ConversionMethod {
@@ -125,6 +127,7 @@ fn extract_conversions(ast: &DeriveInput) -> Vec<ConversionMeta> {
                 source_name,
                 target_name,
                 method,
+                default_allowed: has_attribute(attr, "default"),
             })
         })
         .collect()
@@ -309,7 +312,14 @@ fn implement_conversion(meta: ConversionMeta, fields: &Vec<Field>) -> syn::Resul
         source_name,
         target_name,
         method,
+        default_allowed,
     } = meta;
+
+    let default_fields = if default_allowed {
+        quote! { ..Default::default() }
+    } else {
+        quote! {}
+    };
 
     Ok(if method.is_falliable() {
         quote! {
@@ -321,6 +331,7 @@ fn implement_conversion(meta: ConversionMeta, fields: &Vec<Field>) -> syn::Resul
 
                     anyhow::Ok(#target_name {
                         #(#fields)*
+                        #default_fields
                     })
                 }
             }
@@ -331,6 +342,7 @@ fn implement_conversion(meta: ConversionMeta, fields: &Vec<Field>) -> syn::Resul
                 fn from(source: #source_name) -> #target_name {
                     #target_name {
                         #(#fields)*
+                        #default_fields
                     }
                 }
             }
