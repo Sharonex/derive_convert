@@ -1,6 +1,6 @@
 use derive_convert::Convert;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 struct Number(u8);
 
 impl From<Number> for u8 {
@@ -25,7 +25,7 @@ impl From<u16> for Number {
     }
 }
 #[derive(Convert)]
-#[convert(into = "B")]
+#[convert(into = "B", default)]
 #[convert(from = "B")]
 pub struct A {
     #[convert(unwrap)]
@@ -40,11 +40,13 @@ pub struct A {
     pub old_name: u16,
 }
 
+#[derive(Default)]
 pub struct B {
     normal: u8,
     opt: Option<Number>,
     vec: Vec<Number>,
     renamed_field: Number,
+    x: Option<u8>,
 }
 
 fn main() {
