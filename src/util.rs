@@ -1,4 +1,4 @@
-use syn::{Attribute, Field, Ident, Meta, NestedMeta, Type, parse_str, spanned::Spanned};
+use syn::{Attribute, Field, Meta, NestedMeta, spanned::Spanned};
 
 pub(super) fn has_attribute(attr: &Attribute, attribute_name: &str) -> bool {
     if !attr.path.is_ident("convert") {

@@ -2,7 +2,7 @@ use derive_convert::try_convert_derive;
 use syn::{DeriveInput, parse_macro_input};
 
 mod derive_convert;
-
+mod struct_convert;
 mod util;
 
 #[proc_macro_derive(Convert, attributes(convert))]

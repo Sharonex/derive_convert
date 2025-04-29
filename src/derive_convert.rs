@@ -2,9 +2,12 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
 use syn::{DeriveInput, Error, Field, Ident, Path, spanned::Spanned};
 
-use crate::util::{
-    extract_single_path_attribute, field_has_attribute, get_attribute_value, get_field_value,
-    has_attribute, is_surrounding_type,
+use crate::{
+    struct_convert::implement_all_struct_conversions,
+    util::{
+        extract_single_path_attribute, field_has_attribute, get_field_value, has_attribute,
+        is_surrounding_type,
+    },
 };
 
 enum FieldConversionMethod {
@@ -16,7 +19,7 @@ enum FieldConversionMethod {
     HashMap,
 }
 
-struct ConvertibleField {
+pub(super) struct ConvertibleField {
     source_name: Ident,
     span: Span,
     skip: bool,
@@ -63,15 +66,17 @@ fn decide_field_method(field: &Field, is_from: bool) -> syn::Result<FieldConvers
     Ok(FieldConversionMethod::Plain)
 }
 
-struct ConversionMeta {
-    source_name: Path,
-    target_name: Path,
-    method: ConversionMethod,
+#[derive(Clone)]
+pub(super) struct ConversionMeta {
+    pub(super) source_name: Path,
+    pub(super) target_name: Path,
+    pub(super) method: ConversionMethod,
     // Wether we add ..Default::default() to conversions
-    default_allowed: bool,
+    pub(super) default_allowed: bool,
 }
 
-enum ConversionMethod {
+#[derive(Clone)]
+pub(super) enum ConversionMethod {
     Into,
     TryInto,
     From,
@@ -79,11 +84,11 @@ enum ConversionMethod {
 }
 
 impl ConversionMethod {
-    fn is_from(&self) -> bool {
+    pub(super) fn is_from(&self) -> bool {
         matches!(self, ConversionMethod::From | ConversionMethod::TryFrom)
     }
 
-    fn is_falliable(&self) -> bool {
+    pub(super) fn is_falliable(&self) -> bool {
         matches!(self, ConversionMethod::TryInto | ConversionMethod::TryFrom)
     }
 }
@@ -133,7 +138,7 @@ fn extract_conversions(ast: &DeriveInput) -> Vec<ConversionMeta> {
         .collect()
 }
 
-fn field_falliable_conversion(
+pub(super) fn field_falliable_conversion(
     ConvertibleField {
         source_name,
         target_name,
@@ -184,7 +189,7 @@ fn field_falliable_conversion(
     }
 }
 
-fn field_infalliable_conversion(
+pub(super) fn field_infalliable_conversion(
     ConvertibleField {
         source_name,
         target_name,
@@ -229,7 +234,10 @@ fn field_infalliable_conversion(
         }
     }
 }
-fn build_convertible_field(field: &Field, meta: &ConversionMeta) -> syn::Result<ConvertibleField> {
+pub(super) fn build_convertible_field(
+    field: &Field,
+    meta: &ConversionMeta,
+) -> syn::Result<ConvertibleField> {
     let field_name = field
         .ident
         .clone()
@@ -256,46 +264,13 @@ fn build_convertible_field(field: &Field, meta: &ConversionMeta) -> syn::Result<
         })
     }
 }
-fn extract_fields(ast: &DeriveInput) -> syn::Result<Vec<Field>> {
-    // Check if the input is a struct
-    if let syn::Data::Struct(data_struct) = &ast.data {
-        // Extract fields based on the struct type (named, unnamed, or unit)
-        match &data_struct.fields {
-            // For named fields (regular structs with named fields)
-            syn::Fields::Named(fields_named) => Ok(fields_named.named.iter().cloned().collect()),
-            // For unnamed fields (tuple structs)
-            syn::Fields::Unnamed(fields_unnamed) => {
-                Ok(fields_unnamed.unnamed.iter().cloned().collect())
-            }
-            // For unit structs (no fields)
-            syn::Fields::Unit => Ok(Vec::new()),
-        }
-    } else {
-        // Return an error if the input is not a struct
-        Err(syn::Error::new_spanned(
-            ast.ident.clone(),
-            "Expected a struct".to_string(),
-        ))
-    }
-}
-pub(super) fn try_convert_derive(ast: &DeriveInput) -> syn::Result<TokenStream2> {
-    let conversions = extract_conversions(ast);
 
-    let fields = extract_fields(ast)?;
-
-    let conversions: Vec<TokenStream2> = conversions
-        .into_iter()
-        .map(|c| implement_conversion(c, &fields))
-        .collect::<syn::Result<_>>()?;
-
-    Ok(quote! {
-        #(#conversions)*
-    })
-}
-
-fn implement_conversion(meta: ConversionMeta, fields: &Vec<Field>) -> syn::Result<TokenStream2> {
-    let fields: Vec<_> = fields
-        .into_iter()
+pub(super) fn build_field_conversions(
+    meta: ConversionMeta,
+    fields: &Vec<Field>,
+) -> syn::Result<Vec<TokenStream2>> {
+    Ok(fields
+        .iter()
         .map(|field| build_convertible_field(field, &meta))
         .collect::<syn::Result<Vec<_>>>()?
         .into_iter()
@@ -306,46 +281,19 @@ fn implement_conversion(meta: ConversionMeta, fields: &Vec<Field>) -> syn::Resul
                 field_infalliable_conversion(field, &meta.target_name)
             }
         })
-        .collect();
+        .collect())
+}
 
-    let ConversionMeta {
-        source_name,
-        target_name,
-        method,
-        default_allowed,
-    } = meta;
+pub(super) fn try_convert_derive(ast: &DeriveInput) -> syn::Result<TokenStream2> {
+    let conversions = extract_conversions(ast);
 
-    let default_fields = if default_allowed {
-        quote! { ..Default::default() }
-    } else {
-        quote! {}
-    };
-
-    Ok(if method.is_falliable() {
-        quote! {
-            impl TryFrom<#source_name> for #target_name {
-                type Error = anyhow::Error;
-                fn try_from(source: #source_name) -> Result<#target_name, Self::Error> {
-                    // Import itertools for try_collect
-                    use itertools::Itertools;
-
-                    anyhow::Ok(#target_name {
-                        #(#fields)*
-                        #default_fields
-                    })
-                }
-            }
+    match &ast.data {
+        syn::Data::Struct(data_struct) => {
+            implement_all_struct_conversions(data_struct, conversions)
         }
-    } else {
-        quote! {
-            impl From<#source_name> for #target_name {
-                fn from(source: #source_name) -> #target_name {
-                    #target_name {
-                        #(#fields)*
-                        #default_fields
-                    }
-                }
-            }
-        }
-    })
+        _ => Err(syn::Error::new_spanned(
+            ast.ident.clone(),
+            "Expected a struct".to_string(),
+        ))?,
+    }
 }

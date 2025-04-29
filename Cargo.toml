@@ -10,6 +10,7 @@ proc-macro = true
 syn = "1"
 quote = "1"
 proc-macro2 = "1"
+itertools = "0.14"
 
 [dev-dependencies]
 trybuild = "1.0"
