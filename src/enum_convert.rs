@@ -98,18 +98,24 @@ fn implement_enum_conversion(
         let field_conversions =
             build_field_conversions(&meta, *named_variant, false, fields).unwrap();
 
+        if variant.fields.len() == 0 {
+            return quote! {
+                #source_name::#source_variant_name => #target_name::#target_variant_name,
+            };
+        }
+
         if variant.named_variant {
             quote! {
                 #source_name::#source_variant_name{ #(#source_fields),* } => #target_name::#target_variant_name {
                     #(#field_conversions)*
                     #default_fields
-                }
+                },
             }
         } else {
             quote! {
                 #source_name::#source_variant_name(#(#source_fields),*) => {
                     #target_name::#target_variant_name(#(#field_conversions)*)
-                }
+                },
             }
         }
     });

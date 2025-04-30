@@ -66,12 +66,14 @@ enum E {
         #[convert(rename = "other2")]
         other: u8,
     },
+    Unit,
 }
 
 #[derive(Debug, PartialEq)]
 enum F {
     Variant1(B),
     VariantRenamed { field: B, other2: Number },
+    Unit,
 }
 
 fn main() {
