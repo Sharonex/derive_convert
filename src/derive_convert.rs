@@ -266,13 +266,19 @@ pub(super) fn field_falliable_conversion(
         }
         FieldConversionMethod::HashMap => {
             quote_spanned! { span =>
-                #named_start #source_name.into_iter().map(|(a, b)| (a.try_into()?, b.try_into()?)).try_collect().map_err(|e|
-                    format!("Failed trying to convert {} to {}: {:?}",
-                        stringify!(#source_name),
-                        stringify!(#target_type),
-                        e,
-                    )
-                )?,
+                #named_start {
+                    let mut result = ::std::collections::HashMap::new();
+                    for (k, v) in #source_name {
+                        let key = k.try_into().map_err(|e|
+                            format!("Failed to convert key in HashMap {}: {:?}",
+                                stringify!(#source_name), e))?;
+                        let value = v.try_into().map_err(|e|
+                            format!("Failed to convert value in HashMap {}: {:?}",
+                                stringify!(#source_name), e))?;
+                        result.insert(key, value);
+                    }
+                    result
+                },
             }
         }
     }
