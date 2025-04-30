@@ -22,5 +22,7 @@ mod tests {
         let t = trybuild::TestCases::new();
         // Use the correct relative path from the project root
         t.pass("tests/cases/basic.rs");
+        t.pass("tests/cases/test_enum_conversions.rs");
+        t.pass("tests/cases/test_struct_conversions.rs");
     }
 }
