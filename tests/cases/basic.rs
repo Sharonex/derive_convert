@@ -1,4 +1,4 @@
-use derive_convert::Convert;
+use derive_into::Convert;
 
 #[derive(Debug, PartialEq, Default)]
 struct Number(u8);

@@ -4,7 +4,7 @@ use quote::quote;
 use syn::DataEnum;
 
 use crate::{
-    derive_convert::{
+    derive_into::{
         ConversionMeta, ConvertibleField, build_convertible_field, build_field_conversions,
     },
     util::get_variant_value,

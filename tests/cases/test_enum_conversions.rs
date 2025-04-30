@@ -1,4 +1,4 @@
-use derive_convert::Convert;
+use derive_into::Convert;
 
 // Custom types to demonstrate type conversion in enums
 #[derive(Debug, PartialEq, Clone)]

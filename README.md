@@ -1,4 +1,4 @@
-# derive-convert
+# derive-into
 
 A Rust derive macro for easily creating conversions between structs and enums.
 
@@ -18,13 +18,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-derive-convert = "0.1.0"
+derive-into = "0.1.0"
 ```
 
 ## Quick Start
 
 ```rust
-use derive_convert::Convert;
+use derive_into::Convert;
 
 // Source struct with conversion attributes
 #[derive(Convert)]
@@ -118,7 +118,7 @@ The macro intelligently handles various type scenarios:
 ### Basic Struct Conversion
 
 ```rust
-use derive_convert::Convert;
+use derive_into::Convert;
 
 #[derive(Convert)]
 #[convert(into = "Target")]
@@ -142,7 +142,7 @@ let target: Target = source.into();
 The macro automatically handles conversion of inner types for `Option` and `Vec`:
 
 ```rust
-use derive_convert::Convert;
+use derive_into::Convert;
 
 #[derive(Debug, PartialEq, Default)]
 struct Number(u8);
@@ -171,7 +171,7 @@ struct Target {
 ### Using Unwrap for Options
 
 ```rust
-use derive_convert::Convert;
+use derive_into::Convert;
 
 #[derive(Convert)]
 #[convert(try_from = "Source")]
@@ -198,7 +198,7 @@ assert!(target.is_err());
 ### Using Default Values
 
 ```rust
-use derive_convert::Convert;
+use derive_into::Convert;
 
 #[derive(Convert)]
 #[convert(into = "Target", default)]

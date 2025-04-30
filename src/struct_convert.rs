@@ -3,7 +3,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{DataStruct, spanned::Spanned};
 
-use crate::derive_convert::{ConversionMeta, build_convertible_field, build_field_conversions};
+use crate::derive_into::{ConversionMeta, build_convertible_field, build_field_conversions};
 
 pub(super) fn implement_all_struct_conversions(
     data_struct: &DataStruct,

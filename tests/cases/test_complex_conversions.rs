@@ -1,4 +1,4 @@
-use derive_convert::Convert;
+use derive_into::Convert;
 use std::collections::HashMap;
 
 // Custom wrapper types for demonstration
