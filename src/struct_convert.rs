@@ -78,12 +78,12 @@ fn implement_struct_conversion(
     Ok(if method.is_falliable() {
         quote! {
             impl TryFrom<#source_name> for #target_name {
-                type Error = anyhow::Error;
+                type Error = String;
                 fn try_from(source: #source_name) -> Result<#target_name, Self::Error> {
                     // Import itertools for try_collect
                     use itertools::Itertools;
 
-                    anyhow::Ok(#inner)
+                    Ok(#inner)
                 }
             }
         }

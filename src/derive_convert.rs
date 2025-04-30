@@ -204,36 +204,75 @@ pub(super) fn field_falliable_conversion(
 
     match method {
         FieldConversionMethod::Plain => quote_spanned! { span =>
-            #named_start #source_name.try_into()?,
+            #named_start #source_name.try_into().map_err(|e|
+                    format!("Failed trying to convert {} to {}: {:?}",
+                        stringify!(#source_name),
+                        stringify!(#target_type),
+                        e,
+                    )
+                )?,
         },
         FieldConversionMethod::UnwrapOption => {
             quote_spanned! { span =>
-                #named_start #source_name.expect(
-                    format!("Expected to {} to exist when converting to {}",
+                #named_start #source_name.ok_or_else(Err(
+                    format!("Failed trying to convert {} to {}: {:?}",
                         stringify!(#source_name),
-                        stringify!(#target_type))
+                        stringify!(#target_type),
+                        e,
+                    ))
                 )
-                    .try_into()?,
+                .try_into()
+                .map_err(|e|
+                    format!("Failed trying to convert {} to {}: {:?}",
+                        stringify!(#source_name),
+                        stringify!(#target_type),
+                        e,
+                    )
+                )?,
             }
         }
         FieldConversionMethod::SomeOption => {
             quote_spanned! { span =>
-                #named_start Some(#source_name.try_into()?),
+                #named_start Some(#source_name.try_into().map_err(|e|
+                    format!("Failed trying to convert {} to {}: {:?}",
+                        stringify!(#source_name),
+                        stringify!(#target_type),
+                        e,
+                    )
+                )?),
             }
         }
         FieldConversionMethod::Option => {
             quote_spanned! { span =>
-                #named_start #source_name.map(TryInto::try_into).transpose()?,
+                #named_start #source_name.map(TryInto::try_into).transpose().map_err(|e|
+                    format!("Failed trying to convert {} to {}: {:?}",
+                        stringify!(#source_name),
+                        stringify!(#target_type),
+                        e,
+                    )
+                )?,
             }
         }
         FieldConversionMethod::Iterator => {
             quote_spanned! { span =>
-                #named_start #source_name.into_iter().map(TryInto::try_into).try_collect()?,
+                #named_start #source_name.into_iter().map(TryInto::try_into).try_collect().map_err(|e|
+                    format!("Failed trying to convert {} to {}: {:?}",
+                        stringify!(#source_name),
+                        stringify!(#target_type),
+                        e,
+                    )
+                )?,
             }
         }
         FieldConversionMethod::HashMap => {
             quote_spanned! { span =>
-                #named_start #source_name.into_iter().map(|(a, b)| (a.try_into()?, b.try_into()?)).try_collect()?,
+                #named_start #source_name.into_iter().map(|(a, b)| (a.try_into()?, b.try_into()?)).try_collect().map_err(|e|
+                    format!("Failed trying to convert {} to {}: {:?}",
+                        stringify!(#source_name),
+                        stringify!(#target_type),
+                        e,
+                    )
+                )?,
             }
         }
     }
@@ -273,7 +312,12 @@ pub(super) fn field_infalliable_conversion(
         },
         FieldConversionMethod::UnwrapOption => {
             quote_spanned! { span =>
-                #named_start #source_name.expect(format!("Expected to {} to exist when converting to {}", stringify!(#source_name), stringify!(#target_type)).as_str()).into(),
+                #named_start #source_name.expect(
+                    format!("Expected to {} to exist when converting to {}",
+                        stringify!(#source_name),
+                        stringify!(#target_type),
+                    ).as_str()
+                ).into(),
             }
         }
         FieldConversionMethod::SomeOption => {

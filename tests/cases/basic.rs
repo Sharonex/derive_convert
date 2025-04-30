@@ -26,7 +26,7 @@ impl From<u16> for Number {
 }
 #[derive(Convert, Debug, PartialEq)]
 #[convert(into = "B", default)]
-#[convert(from = "B")]
+#[convert(try_from = "B")]
 pub struct A {
     #[convert(unwrap)]
     pub normal: Option<u8>,
