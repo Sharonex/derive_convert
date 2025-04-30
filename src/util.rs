@@ -1,4 +1,4 @@
-use syn::{Attribute, Field, Meta, NestedMeta, spanned::Spanned};
+use syn::{Attribute, Field, Meta, NestedMeta, Variant, spanned::Spanned};
 
 pub(super) fn has_attribute(attr: &Attribute, attribute_name: &str) -> bool {
     if !attr.path.is_ident("convert") {
@@ -46,6 +46,14 @@ pub(super) fn get_attribute_value(attr: &Attribute, attribute_name: &str) -> Opt
             None
         }
     })
+}
+
+pub(super) fn get_variant_value(variant: &Variant, attribute_name: &str) -> Option<syn::Ident> {
+    variant
+        .attrs
+        .iter()
+        .find_map(|attr| get_attribute_value(attr, attribute_name))
+        .map(|attr_val| syn::Ident::new(attr_val.as_str(), variant.span()))
 }
 
 pub(super) fn get_field_value(field: &Field, attribute_name: &str) -> Option<syn::Ident> {

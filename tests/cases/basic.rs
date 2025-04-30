@@ -60,6 +60,7 @@ pub struct D(Option<Number>, Number);
 #[convert(into = "F")]
 enum E {
     Variant1(A),
+    #[convert(rename = "VariantRenamed")]
     VariantNamed {
         field: A,
         #[convert(rename = "other2")]
@@ -70,7 +71,7 @@ enum E {
 #[derive(Debug, PartialEq)]
 enum F {
     Variant1(B),
-    VariantNamed { field: B, other2: Number },
+    VariantRenamed { field: B, other2: Number },
 }
 
 fn main() {

@@ -3,8 +3,11 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::DataEnum;
 
-use crate::derive_convert::{
-    ConversionMeta, ConvertibleField, build_convertible_field, build_field_conversions,
+use crate::{
+    derive_convert::{
+        ConversionMeta, ConvertibleField, build_convertible_field, build_field_conversions,
+    },
+    util::get_variant_value,
 };
 
 #[derive(Clone)]
@@ -49,9 +52,11 @@ fn extract_enum_variants(
                 syn::Fields::Unit => (Vec::new(), false),
             };
 
+            let other_variant_name =
+                get_variant_value(variant, "rename").unwrap_or_else(|| variant.ident.clone());
             Ok(ConversionVariant {
                 source_name: variant.ident.clone(),
-                target_name: variant.ident.clone(),
+                target_name: other_variant_name,
                 named_variant,
                 fields: fields
                     .iter()
