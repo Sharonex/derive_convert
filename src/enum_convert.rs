@@ -54,9 +54,15 @@ fn extract_enum_variants(
 
             let other_variant_name =
                 get_variant_value(variant, "rename").unwrap_or_else(|| variant.ident.clone());
+
+            let (source_name, target_name) = if meta.method.is_from() {
+                (other_variant_name, variant.ident.clone())
+            } else {
+                (variant.ident.clone(), other_variant_name)
+            };
             Ok(ConversionVariant {
-                source_name: variant.ident.clone(),
-                target_name: other_variant_name,
+                source_name,
+                target_name,
                 named_variant,
                 fields: fields
                     .iter()

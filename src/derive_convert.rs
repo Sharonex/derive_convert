@@ -358,24 +358,19 @@ pub(super) fn build_convertible_field(
         .unwrap_or_else(|| field_name.clone());
 
     let skip = field_has_attribute(field, "skip");
-
-    if meta.method.is_from() {
-        Ok(ConvertibleField {
-            source_name: other_field_name,
-            span: field.span(),
-            skip,
-            method: decide_field_method(field, true)?,
-            target_name: field_name,
-        })
+    let (source_name, target_name) = if meta.method.is_from() {
+        (other_field_name.clone(), field_name.clone())
     } else {
-        Ok(ConvertibleField {
-            source_name: field_name,
-            span: field.span(),
-            skip,
-            method: decide_field_method(field, false)?,
-            target_name: other_field_name,
-        })
-    }
+        (field_name.clone(), other_field_name.clone())
+    };
+
+    Ok(ConvertibleField {
+        source_name,
+        target_name,
+        span: field.span(),
+        skip,
+        method: decide_field_method(field, meta.method.is_from())?,
+    })
 }
 
 pub(super) fn build_field_conversions(
