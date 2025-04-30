@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{DataStruct, Field};
+use syn::{DataStruct, spanned::Spanned};
 
 use crate::derive_convert::{ConversionMeta, build_field_conversions};
 
@@ -9,13 +9,21 @@ pub(super) fn implement_all_struct_conversions(
     data_struct: &DataStruct,
     conversions: Vec<ConversionMeta>,
 ) -> syn::Result<TokenStream2> {
-    let fields = extract_struct_fields(data_struct)?;
+    let (fields, named_struct) = match &data_struct.fields {
+        syn::Fields::Named(fields_named) => (fields_named.named.iter().cloned().collect(), true),
+        syn::Fields::Unnamed(fields_unnamed) => {
+            (fields_unnamed.unnamed.iter().cloned().collect(), false)
+        }
+        syn::Fields::Unit => panic!("Unit structs are not supported for conversion"),
+    };
+
     let conversion_impls: Vec<_> = conversions
         .into_iter()
         .map(|conversion| {
             implement_struct_conversion(
                 conversion.clone(),
-                build_field_conversions(conversion, &fields)?,
+                named_struct,
+                build_field_conversions(conversion, named_struct, &fields)?,
             )
         })
         .try_collect()?;
@@ -25,22 +33,9 @@ pub(super) fn implement_all_struct_conversions(
     })
 }
 
-fn extract_struct_fields(data_struct: &DataStruct) -> syn::Result<Vec<Field>> {
-    // Extract fields based on the struct type (named, unnamed, or unit)
-    match &data_struct.fields {
-        // For named fields (regular structs with named fields)
-        syn::Fields::Named(fields_named) => Ok(fields_named.named.iter().cloned().collect()),
-        // For unnamed fields (tuple structs)
-        syn::Fields::Unnamed(fields_unnamed) => {
-            Ok(fields_unnamed.unnamed.iter().cloned().collect())
-        }
-        // For unit structs (no fields)
-        syn::Fields::Unit => Ok(Vec::new()),
-    }
-}
-
 fn implement_struct_conversion(
     meta: ConversionMeta,
+    named_struct: bool,
     fields: Vec<TokenStream2>,
 ) -> syn::Result<TokenStream2> {
     let ConversionMeta {
@@ -50,10 +45,23 @@ fn implement_struct_conversion(
         default_allowed,
     } = meta;
 
+    if !named_struct && default_allowed {
+        return Err(syn::Error::new(
+            source_name.span(),
+            "Default values are not supported for unnamed structs",
+        ));
+    }
+
     let default_fields = if default_allowed {
         quote! { ..Default::default() }
     } else {
         quote! {}
+    };
+
+    let inner = if named_struct {
+        quote! { #target_name { #(#fields)* #default_fields } }
+    } else {
+        quote! { #target_name(#(#fields)* #default_fields) }
     };
 
     Ok(if method.is_falliable() {
@@ -64,10 +72,7 @@ fn implement_struct_conversion(
                     // Import itertools for try_collect
                     use itertools::Itertools;
 
-                    anyhow::Ok(#target_name {
-                        #(#fields)*
-                        #default_fields
-                    })
+                    anyhow::Ok(#inner)
                 }
             }
         }
@@ -75,10 +80,7 @@ fn implement_struct_conversion(
         quote! {
             impl From<#source_name> for #target_name {
                 fn from(source: #source_name) -> #target_name {
-                    #target_name {
-                        #(#fields)*
-                        #default_fields
-                    }
+                    #inner
                 }
             }
         }

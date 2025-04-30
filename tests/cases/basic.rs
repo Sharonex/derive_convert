@@ -49,6 +49,13 @@ pub struct B {
     x: Option<u8>,
 }
 
+#[derive(Convert)]
+#[convert(into = "D")]
+pub struct C(Option<u8>, u8);
+
+#[derive(Default)]
+pub struct D(Option<Number>, Number);
+
 fn main() {
     let a = A {
         normal: Some(1),
@@ -62,4 +69,8 @@ fn main() {
     assert_eq!(b.vec, vec![Number(3)]);
 
     assert_eq!(b.renamed_field, Number(0));
+
+    let d: D = C(Some(3), 1).into();
+    assert_eq!(d.0.unwrap().0, 3);
+    assert_eq!(d.1.0, 1);
 }
