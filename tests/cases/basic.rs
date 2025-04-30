@@ -24,7 +24,7 @@ impl From<u16> for Number {
         Number(0)
     }
 }
-#[derive(Convert)]
+#[derive(Convert, Debug, PartialEq)]
 #[convert(into = "B", default)]
 #[convert(from = "B")]
 pub struct A {
@@ -40,7 +40,7 @@ pub struct A {
     pub old_name: u16,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq)]
 pub struct B {
     normal: u8,
     opt: Option<Number>,
@@ -49,12 +49,29 @@ pub struct B {
     x: Option<u8>,
 }
 
-#[derive(Convert)]
+#[derive(Convert, Debug)]
 #[convert(into = "D")]
 pub struct C(Option<u8>, u8);
 
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq)]
 pub struct D(Option<Number>, Number);
+
+#[derive(Convert)]
+#[convert(into = "F")]
+enum E {
+    Variant1(A),
+    VariantNamed {
+        field: A,
+        #[convert(rename = "other2")]
+        other: u8,
+    },
+}
+
+#[derive(Debug, PartialEq)]
+enum F {
+    Variant1(B),
+    VariantNamed { field: B, other2: Number },
+}
 
 fn main() {
     let a = A {
@@ -73,4 +90,22 @@ fn main() {
     let d: D = C(Some(3), 1).into();
     assert_eq!(d.0.unwrap().0, 3);
     assert_eq!(d.1.0, 1);
+
+    let e = E::Variant1(A {
+        normal: Some(1),
+        opt: Some(2),
+        vec: vec![3],
+        old_name: 4,
+    });
+    let f: F = e.try_into().unwrap();
+    assert_eq!(
+        f,
+        F::Variant1(B {
+            normal: 1,
+            opt: Some(Number(2)),
+            vec: vec![Number(3)],
+            renamed_field: Number(0),
+            x: None,
+        })
+    );
 }

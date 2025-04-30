@@ -3,14 +3,16 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{DataStruct, spanned::Spanned};
 
-use crate::derive_convert::{ConversionMeta, build_field_conversions};
+use crate::derive_convert::{ConversionMeta, build_convertible_field, build_field_conversions};
 
 pub(super) fn implement_all_struct_conversions(
     data_struct: &DataStruct,
     conversions: Vec<ConversionMeta>,
 ) -> syn::Result<TokenStream2> {
     let (fields, named_struct) = match &data_struct.fields {
-        syn::Fields::Named(fields_named) => (fields_named.named.iter().cloned().collect(), true),
+        syn::Fields::Named(fields_named) => {
+            (fields_named.named.iter().cloned().collect::<Vec<_>>(), true)
+        }
         syn::Fields::Unnamed(fields_unnamed) => {
             (fields_unnamed.unnamed.iter().cloned().collect(), false)
         }
@@ -23,7 +25,16 @@ pub(super) fn implement_all_struct_conversions(
             implement_struct_conversion(
                 conversion.clone(),
                 named_struct,
-                build_field_conversions(conversion, named_struct, &fields)?,
+                build_field_conversions(
+                    &conversion,
+                    named_struct,
+                    true,
+                    &fields
+                        .iter()
+                        .enumerate()
+                        .map(|(index, field)| build_convertible_field(field, &conversion, index))
+                        .try_collect()?,
+                )?,
             )
         })
         .try_collect()?;

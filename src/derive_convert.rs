@@ -1,8 +1,9 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::{ToTokens, quote, quote_spanned};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::{DeriveInput, Error, Field, Ident, Path, spanned::Spanned};
 
 use crate::{
+    enum_convert::implement_all_enum_conversions,
     struct_convert::implement_all_struct_conversions,
     util::{
         extract_single_path_attribute, field_has_attribute, get_field_value, has_attribute,
@@ -10,6 +11,7 @@ use crate::{
     },
 };
 
+#[derive(Clone)]
 enum FieldConversionMethod {
     Plain,
     UnwrapOption,
@@ -39,12 +41,25 @@ impl ToTokens for FieldIdentifier {
     }
 }
 
+impl FieldIdentifier {
+    pub(super) fn as_named(&self) -> TokenStream2 {
+        match self {
+            FieldIdentifier::Named(ident) => quote! { #ident },
+            FieldIdentifier::Unnamed(index) => {
+                let field_name = format_ident!("field{}", index);
+                quote! { #field_name }
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
 pub(super) struct ConvertibleField {
-    source_name: FieldIdentifier,
+    pub(super) source_name: FieldIdentifier,
     span: Span,
     skip: bool,
     method: FieldConversionMethod,
-    target_name: FieldIdentifier,
+    pub(super) target_name: FieldIdentifier,
 }
 
 fn decide_field_method(field: &Field, is_from: bool) -> syn::Result<FieldConversionMethod> {
@@ -168,6 +183,7 @@ pub(super) fn field_falliable_conversion(
     }: ConvertibleField,
     target_type: &Path,
     named: bool,
+    source_prefix: bool,
 ) -> TokenStream2 {
     if skip {
         return quote! {};
@@ -179,13 +195,20 @@ pub(super) fn field_falliable_conversion(
         quote! {}
     };
 
+    let source_name = if source_prefix {
+        quote!(source.#source_name)
+    } else {
+        let source_name = source_name.as_named();
+        quote!(#source_name)
+    };
+
     match method {
         FieldConversionMethod::Plain => quote_spanned! { span =>
-            #named_start source.#source_name.try_into()?,
+            #named_start #source_name.try_into()?,
         },
         FieldConversionMethod::UnwrapOption => {
             quote_spanned! { span =>
-                #named_start source.#source_name.expect(
+                #named_start #source_name.expect(
                     format!("Expected to {} to exist when converting to {}",
                         stringify!(#source_name),
                         stringify!(#target_type))
@@ -195,22 +218,22 @@ pub(super) fn field_falliable_conversion(
         }
         FieldConversionMethod::SomeOption => {
             quote_spanned! { span =>
-                #named_start Some(source.#source_name.try_into()?),
+                #named_start Some(#source_name.try_into()?),
             }
         }
         FieldConversionMethod::Option => {
             quote_spanned! { span =>
-                #named_start source.#source_name.map(TryInto::try_into).transpose()?,
+                #named_start #source_name.map(TryInto::try_into).transpose()?,
             }
         }
         FieldConversionMethod::Iterator => {
             quote_spanned! { span =>
-                #named_start source.#source_name.into_iter().map(TryInto::try_into).try_collect()?,
+                #named_start #source_name.into_iter().map(TryInto::try_into).try_collect()?,
             }
         }
         FieldConversionMethod::HashMap => {
             quote_spanned! { span =>
-                #named_start source.#source_name.into_iter().map(|(a, b)| (a.try_into()?, b.try_into()?)).try_collect()?,
+                #named_start #source_name.into_iter().map(|(a, b)| (a.try_into()?, b.try_into()?)).try_collect()?,
             }
         }
     }
@@ -226,6 +249,7 @@ pub(super) fn field_infalliable_conversion(
     }: ConvertibleField,
     target_type: &Path,
     named: bool,
+    source_prefix: bool,
 ) -> TokenStream2 {
     if skip {
         return quote! {};
@@ -236,33 +260,40 @@ pub(super) fn field_infalliable_conversion(
         quote! {}
     };
 
+    let source_name = if source_prefix {
+        quote!(source.#source_name)
+    } else {
+        let source_name = source_name.as_named();
+        quote!(#source_name)
+    };
+
     match method {
         FieldConversionMethod::Plain => quote_spanned! { span =>
-            #named_start source.#source_name.into(),
+            #named_start #source_name.into(),
         },
         FieldConversionMethod::UnwrapOption => {
             quote_spanned! { span =>
-                #named_start source.#source_name.expect(format!("Expected to {} to exist when converting to {}", stringify!(#source_name), stringify!(#target_type)).as_str()).into(),
+                #named_start #source_name.expect(format!("Expected to {} to exist when converting to {}", stringify!(#source_name), stringify!(#target_type)).as_str()).into(),
             }
         }
         FieldConversionMethod::SomeOption => {
             quote_spanned! { span =>
-                #named_start Some(source.#source_name.into()),
+                #named_start Some(#source_name.into()),
             }
         }
         FieldConversionMethod::Option => {
             quote_spanned! { span =>
-                #named_start source.#source_name.map(Into::into),
+                #named_start #source_name.map(Into::into),
             }
         }
         FieldConversionMethod::Iterator => {
             quote_spanned! { span =>
-                #named_start source.#source_name.into_iter().map(Into::into).collect(),
+                #named_start #source_name.into_iter().map(Into::into).collect(),
             }
         }
         FieldConversionMethod::HashMap => {
             quote_spanned! { span =>
-                #named_start source.#source_name.into_iter().map(|(a, b)| (a.into(), b.into)).collect()
+                #named_start #source_name.into_iter().map(|(a, b)| (a.into(), b.into())).collect(),
             }
         }
     }
@@ -304,21 +335,18 @@ pub(super) fn build_convertible_field(
 }
 
 pub(super) fn build_field_conversions(
-    meta: ConversionMeta,
+    meta: &ConversionMeta,
     named: bool,
-    fields: &Vec<Field>,
+    source_prefix: bool,
+    fields: &Vec<ConvertibleField>,
 ) -> syn::Result<Vec<TokenStream2>> {
     Ok(fields
-        .iter()
-        .enumerate()
-        .map(|(index, field)| build_convertible_field(field, &meta, index))
-        .collect::<syn::Result<Vec<_>>>()?
         .into_iter()
         .map(|field| {
             if meta.method.is_falliable() {
-                field_falliable_conversion(field, &meta.target_name, named)
+                field_falliable_conversion(field.clone(), &meta.target_name, named, source_prefix)
             } else {
-                field_infalliable_conversion(field, &meta.target_name, named)
+                field_infalliable_conversion(field.clone(), &meta.target_name, named, source_prefix)
             }
         })
         .collect())
@@ -331,9 +359,10 @@ pub(super) fn try_convert_derive(ast: &DeriveInput) -> syn::Result<TokenStream2>
         syn::Data::Struct(data_struct) => {
             implement_all_struct_conversions(data_struct, conversions)
         }
-        _ => Err(syn::Error::new_spanned(
+        syn::Data::Enum(data_enum) => implement_all_enum_conversions(data_enum, conversions),
+        syn::Data::Union(_) => Err(syn::Error::new_spanned(
             ast.ident.clone(),
-            "Expected a struct".to_string(),
+            "Unions are not supported".to_string(),
         ))?,
     }
 }
