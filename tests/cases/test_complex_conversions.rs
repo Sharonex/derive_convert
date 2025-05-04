@@ -36,6 +36,7 @@ impl From<ProductId> for String {
 #[derive(Debug, PartialEq, Clone, Default)]
 struct NonEmptyString(String);
 
+#[cfg(test)]
 impl NonEmptyString {
     fn as_str(&self) -> &str {
         self.0.as_str()
@@ -61,7 +62,7 @@ impl From<NonEmptyString> for String {
 }
 
 // Source struct with complex nested types
-#[derive(Convert, Debug, PartialEq, Clone, Default)]
+#[derive(Convert, Debug, PartialEq, Clone)]
 #[convert(into(path = "ApiProduct", default))]
 #[convert(try_from(path = "ApiProduct"))]
 struct Product {
@@ -88,6 +89,24 @@ struct Product {
     // Field that requires validation
     #[convert(into(skip), try_from(default))]
     sku: String,
+    // Field that requires validation
+    #[convert(into(skip), try_from(with_func = conversion_func))]
+    product_err: ProductError,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct ProductError {
+    message: String,
+}
+
+fn conversion_func(val: &ApiProduct) -> ProductError {
+    ProductError {
+        message: if val.name.is_empty() {
+            "internal_tracking_code cannot be empty".to_string()
+        } else {
+            "Valid internal_tracking_code".to_string()
+        },
+    }
 }
 
 // Target struct for Product
@@ -186,6 +205,9 @@ mod tests {
             },
             internal_tracking_code: "tesafdsav".to_string(),
             sku: "sku-123".to_string(),
+            product_err: ProductError {
+                message: "Ok".to_string(),
+            },
         };
 
         // Convert to API type
@@ -343,6 +365,9 @@ fn main() {
         },
         internal_tracking_code: "internal-123".to_string(),
         sku: "sku-123".to_string(),
+        product_err: ProductError {
+            message: "Ok".to_string(),
+        },
     };
 
     // Convert to API model

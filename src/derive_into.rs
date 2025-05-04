@@ -19,6 +19,7 @@ pub(super) fn field_falliable_conversion(
         method,
         span,
         default,
+        conversion_func,
     }: ConvertibleField,
     target_type: &Path,
     named: bool,
@@ -44,6 +45,12 @@ pub(super) fn field_falliable_conversion(
     if default {
         return quote_spanned! { span =>
             #named_start Default::default(),
+        };
+    }
+
+    if let Some(func) = conversion_func {
+        return quote_spanned! { span =>
+            #named_start #func(&source),
         };
     }
 
@@ -137,6 +144,7 @@ pub(super) fn field_infalliable_conversion(
         method,
         span,
         default,
+        conversion_func,
     }: ConvertibleField,
     target_type: &Path,
     named: bool,
@@ -161,6 +169,12 @@ pub(super) fn field_infalliable_conversion(
     if default {
         return quote_spanned! { span =>
             #named_start Default::default(),
+        };
+    }
+
+    if let Some(func) = conversion_func {
+        return quote_spanned! { span =>
+            #named_start #func(&source),
         };
     }
 

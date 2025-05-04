@@ -11,15 +11,22 @@ use super::conversion_meta::ConversionMethod;
 #[derive(FromMeta, Debug)]
 struct ConvertFieldAttr {
     path: Option<Path>,
+
     #[darling(default)]
     skip: bool,
+
     #[darling(default)]
     unwrap: bool,
+
     #[darling(default)]
     default: bool,
+
     // Add any other field attributes you need
     #[darling(default)]
     rename: Option<String>,
+
+    #[darling(default)]
+    with_func: Option<syn::Path>,
 }
 
 #[derive(FromField, Debug)]
@@ -38,6 +45,9 @@ struct ConvertField {
 
     #[darling(default)]
     unwrap: bool,
+
+    #[darling(default)]
+    with_func: Option<syn::Path>,
 
     // Different conversion types
     #[darling(default)]
@@ -77,6 +87,7 @@ pub(crate) struct ConvertibleField {
     pub(crate) default: bool,
     pub(crate) method: FieldConversionMethod,
     pub(crate) target_name: FieldIdentifier,
+    pub(crate) conversion_func: Option<syn::Path>,
 }
 
 pub(crate) fn extract_convertible_fields(
@@ -156,6 +167,12 @@ pub(crate) fn extract_convertible_fields(
         // Determine field conversion method
         let method = decide_field_method(field, is_from, unwrap)?;
 
+        let conversion_func = field_conv_attrs
+            .as_ref()
+            .and_then(|attrs| attrs.with_func.as_ref())
+            .or(convert_field.with_func.as_ref())
+            .cloned();
+
         let (source_name, target_name) = if is_from {
             (target_name.clone(), source_name.clone())
         } else {
@@ -169,8 +186,20 @@ pub(crate) fn extract_convertible_fields(
             method,
             target_name,
             default,
+            conversion_func,
         });
     }
+
+    // sort so that fields with conversion functions are first
+    result.sort_by(|a, b| {
+        if a.conversion_func.is_some() && b.conversion_func.is_none() {
+            std::cmp::Ordering::Less
+        } else if a.conversion_func.is_none() && b.conversion_func.is_some() {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    });
 
     Ok(result)
 }
