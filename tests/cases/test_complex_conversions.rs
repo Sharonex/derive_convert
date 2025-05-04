@@ -62,8 +62,8 @@ impl From<NonEmptyString> for String {
 
 // Source struct with complex nested types
 #[derive(Convert, Debug, PartialEq, Clone, Default)]
-#[convert(into(path = "ApiProduct"))]
-#[convert(try_from(path = "ApiProduct", default))]
+#[convert(into(path = "ApiProduct", default))]
+#[convert(try_from(path = "ApiProduct"))]
 struct Product {
     id: String,
     name: NonEmptyString,
@@ -81,11 +81,12 @@ struct Product {
     manufacturer: Manufacturer,
 
     // Field that will be skipped in conversion
-    #[convert(skip)]
+    #[convert(into(skip))]
+    #[convert(try_from(default))]
     internal_tracking_code: String,
 
     // Field that requires validation
-    #[convert(skip)]
+    #[convert(into(skip), try_from(default))]
     sku: String,
 }
 
@@ -98,6 +99,9 @@ struct ApiProduct {
     variants: Vec<ApiProductVariant>,
     price_by_region: HashMap<String, Money>,
     manufacturer: ApiManufacturer,
+
+    // This field doesn't exist in the source, will use default
+    average_rating: Option<f32>,
 }
 
 // Nested source struct
@@ -240,6 +244,7 @@ mod tests {
                 country: "Sweden".to_string(),
                 contact_email: "support@deskcraft.com".to_string(),
             },
+            average_rating: Some(1.2343),
         };
 
         // Convert to internal type
@@ -287,6 +292,7 @@ mod tests {
                 country: "Country".to_string(),
                 contact_email: "".to_string(), // Empty email
             },
+            average_rating: None,
         };
 
         // This should succeed since all fields are valid

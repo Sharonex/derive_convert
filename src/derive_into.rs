@@ -18,6 +18,7 @@ pub(super) fn field_falliable_conversion(
         skip,
         method,
         span,
+        default,
     }: ConvertibleField,
     target_type: &Path,
     named: bool,
@@ -39,6 +40,12 @@ pub(super) fn field_falliable_conversion(
         let source_name = source_name.as_named();
         quote!(#source_name)
     };
+
+    if default {
+        return quote_spanned! { span =>
+            #named_start Default::default(),
+        };
+    }
 
     match method {
         FieldConversionMethod::Plain => quote_spanned! { span =>
@@ -129,6 +136,7 @@ pub(super) fn field_infalliable_conversion(
         skip,
         method,
         span,
+        default,
     }: ConvertibleField,
     target_type: &Path,
     named: bool,
@@ -149,6 +157,12 @@ pub(super) fn field_infalliable_conversion(
         let source_name = source_name.as_named();
         quote!(#source_name)
     };
+
+    if default {
+        return quote_spanned! { span =>
+            #named_start Default::default(),
+        };
+    }
 
     match method {
         FieldConversionMethod::Plain => quote_spanned! { span =>

@@ -15,6 +15,8 @@ struct ConvertFieldAttr {
     skip: bool,
     #[darling(default)]
     unwrap: bool,
+    #[darling(default)]
+    default: bool,
     // Add any other field attributes you need
     #[darling(default)]
     rename: Option<String>,
@@ -30,6 +32,9 @@ struct ConvertField {
 
     #[darling(default)]
     rename: Option<String>,
+
+    #[darling(default)]
+    default: bool,
 
     #[darling(default)]
     unwrap: bool,
@@ -69,6 +74,7 @@ pub(crate) struct ConvertibleField {
     pub(crate) source_name: FieldIdentifier,
     pub(crate) span: Span,
     pub(crate) skip: bool,
+    pub(crate) default: bool,
     pub(crate) method: FieldConversionMethod,
     pub(crate) target_name: FieldIdentifier,
 }
@@ -123,6 +129,10 @@ pub(crate) fn extract_convertible_fields(
             .as_ref()
             .map_or(convert_field.unwrap, |attrs| attrs.unwrap);
 
+        let default = field_conv_attrs
+            .as_ref()
+            .map_or(convert_field.default, |attrs| attrs.default);
+
         // Skip applies if either top-level or field-specific skip is true
         let skip =
             convert_field.skip || field_conv_attrs.as_ref().map_or(false, |attrs| attrs.skip);
@@ -158,6 +168,7 @@ pub(crate) fn extract_convertible_fields(
             skip: false, // We've already filtered out skipped fields
             method,
             target_name,
+            default,
         });
     }
 
