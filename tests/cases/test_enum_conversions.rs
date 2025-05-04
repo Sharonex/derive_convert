@@ -18,8 +18,8 @@ impl From<CustomId> for u64 {
 
 // Source enum with different variant types
 #[derive(Convert, Debug, PartialEq, Clone)]
-#[convert(into = "TargetEvent")]
-#[convert(try_from = "TargetEvent")]
+#[convert(into(path = "TargetEvent"))]
+#[convert(try_from(path = "TargetEvent"))]
 enum SourceEvent {
     // Simple unit variant
     Heartbeat,
@@ -101,8 +101,8 @@ enum TargetEvent {
 
 // Source nested enum
 #[derive(Convert, Debug, PartialEq, Clone)]
-#[convert(into = "TargetActionType")]
-#[convert(try_from = "TargetActionType")]
+#[convert(into(path = "TargetActionType"))]
+#[convert(try_from(path = "TargetActionType"))]
 enum SourceActionType {
     View,
     Edit,

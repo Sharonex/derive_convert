@@ -61,9 +61,9 @@ impl From<NonEmptyString> for String {
 }
 
 // Source struct with complex nested types
-#[derive(Convert, Debug, PartialEq, Clone)]
-#[convert(into = "ApiProduct", default)]
-#[convert(try_from = "ApiProduct")]
+#[derive(Convert, Debug, PartialEq, Clone, Default)]
+#[convert(into(path = "ApiProduct"))]
+#[convert(try_from(path = "ApiProduct", default))]
 struct Product {
     id: String,
     name: NonEmptyString,
@@ -79,6 +79,14 @@ struct Product {
 
     // Nested struct with its own conversion
     manufacturer: Manufacturer,
+
+    // Field that will be skipped in conversion
+    #[convert(skip)]
+    internal_tracking_code: String,
+
+    // Field that requires validation
+    #[convert(skip)]
+    sku: String,
 }
 
 // Target struct for Product
@@ -90,15 +98,12 @@ struct ApiProduct {
     variants: Vec<ApiProductVariant>,
     price_by_region: HashMap<String, Money>,
     manufacturer: ApiManufacturer,
-
-    // This field doesn't exist in the source, will use default
-    average_rating: Option<f32>,
 }
 
 // Nested source struct
 #[derive(Convert, Debug, PartialEq, Default, Clone)]
-#[convert(into = "ApiProductVariant")]
-#[convert(try_from = "ApiProductVariant")]
+#[convert(into(path = "ApiProductVariant"))]
+#[convert(try_from(path = "ApiProductVariant"))]
 struct ProductVariant {
     variant_id: String,
     size: String,
@@ -119,8 +124,8 @@ struct ApiProductVariant {
 
 // Another nested source struct
 #[derive(Convert, Debug, PartialEq, Default, Clone)]
-#[convert(into = "ApiManufacturer")]
-#[convert(try_from = "ApiManufacturer")]
+#[convert(into(path = "ApiManufacturer"))]
+#[convert(try_from(path = "ApiManufacturer"))]
 struct Manufacturer {
     name: NonEmptyString,
     country: String,
@@ -175,6 +180,8 @@ mod tests {
                 country: "Germany".to_string(),
                 contact_email: Some("info@ergodesigns.com".to_string()),
             },
+            internal_tracking_code: "tesafdsav".to_string(),
+            sku: "sku-123".to_string(),
         };
 
         // Convert to API type
@@ -206,9 +213,6 @@ mod tests {
             api_product.manufacturer.contact_email,
             "info@ergodesigns.com"
         );
-
-        // Check default field
-        assert_eq!(api_product.average_rating, None);
     }
 
     #[test]
@@ -236,7 +240,6 @@ mod tests {
                 country: "Sweden".to_string(),
                 contact_email: "support@deskcraft.com".to_string(),
             },
-            average_rating: Some(4.7),
         };
 
         // Convert to internal type
@@ -284,7 +287,6 @@ mod tests {
                 country: "Country".to_string(),
                 contact_email: "".to_string(), // Empty email
             },
-            average_rating: None,
         };
 
         // This should succeed since all fields are valid
@@ -333,6 +335,8 @@ fn main() {
             country: "Test Country".to_string(),
             contact_email: Some("test@example.com".to_string()),
         },
+        internal_tracking_code: "internal-123".to_string(),
+        sku: "sku-123".to_string(),
     };
 
     // Convert to API model
