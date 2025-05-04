@@ -5,19 +5,11 @@ use syn::DataEnum;
 
 use crate::{
     attribute_parsing::{
-        conversion_field::{ConvertibleField, extract_convertible_fields},
+        conversion_enum::{ConversionVariant, extract_enum_variants},
         conversion_meta::ConversionMeta,
     },
     derive_into::build_field_conversions,
 };
-
-#[derive(Clone)]
-struct ConversionVariant {
-    source_name: syn::Ident,
-    target_name: syn::Ident,
-    named_variant: bool,
-    fields: Vec<ConvertibleField>,
-}
 
 pub(super) fn implement_all_enum_conversions(
     data_enum: &DataEnum,
@@ -26,7 +18,8 @@ pub(super) fn implement_all_enum_conversions(
     let conversion_impls: Vec<_> = conversions
         .into_iter()
         .map(|conversion| {
-            let variants = extract_enum_variants(data_enum, &conversion)?;
+            let variants =
+                extract_enum_variants(data_enum, conversion.method, &conversion.other_type())?;
             implement_enum_conversion(conversion.clone(), &variants)
         })
         .try_collect()?;
@@ -34,47 +27,6 @@ pub(super) fn implement_all_enum_conversions(
     Ok(quote! {
         #(#conversion_impls)*
     })
-}
-fn extract_enum_variants(
-    data_enum: &DataEnum,
-    meta: &ConversionMeta,
-) -> syn::Result<Vec<ConversionVariant>> {
-    data_enum
-        .variants
-        .iter()
-        .map(|variant| {
-            let (fields, named_variant) = match &variant.fields {
-                syn::Fields::Named(fields_named) => {
-                    (fields_named.named.iter().cloned().collect(), true)
-                }
-                syn::Fields::Unnamed(fields_unnamed) => {
-                    (fields_unnamed.unnamed.iter().cloned().collect(), false)
-                }
-                syn::Fields::Unit => (Vec::new(), false),
-            };
-
-            // TODO: FIX THIS
-            // let other_variant_name =
-            //     get_variant_value(variant, "rename").unwrap_or_else(|| variant.ident.clone());
-            let other_variant_name = variant.ident.clone();
-
-            let (source_name, target_name) = if meta.method.is_from() {
-                (other_variant_name, variant.ident.clone())
-            } else {
-                (variant.ident.clone(), other_variant_name)
-            };
-            Ok(ConversionVariant {
-                source_name,
-                target_name,
-                named_variant,
-                fields: extract_convertible_fields(
-                    &variant.fields,
-                    meta.method,
-                    &meta.other_type(),
-                )?,
-            })
-        })
-        .try_collect()
 }
 
 fn implement_enum_conversion(
