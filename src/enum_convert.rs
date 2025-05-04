@@ -4,10 +4,11 @@ use quote::quote;
 use syn::DataEnum;
 
 use crate::{
-    derive_into::{
-        ConversionMeta, ConvertibleField, build_convertible_field, build_field_conversions,
+    attribute_parsing::{
+        conversion_field::{ConvertibleField, extract_convertible_fields},
+        conversion_meta::ConversionMeta,
     },
-    util::get_variant_value,
+    derive_into::build_field_conversions,
 };
 
 #[derive(Clone)]
@@ -52,8 +53,10 @@ fn extract_enum_variants(
                 syn::Fields::Unit => (Vec::new(), false),
             };
 
-            let other_variant_name =
-                get_variant_value(variant, "rename").unwrap_or_else(|| variant.ident.clone());
+            // TODO: FIX THIS
+            // let other_variant_name =
+            //     get_variant_value(variant, "rename").unwrap_or_else(|| variant.ident.clone());
+            let other_variant_name = variant.ident.clone();
 
             let (source_name, target_name) = if meta.method.is_from() {
                 (other_variant_name, variant.ident.clone())
@@ -64,11 +67,11 @@ fn extract_enum_variants(
                 source_name,
                 target_name,
                 named_variant,
-                fields: fields
-                    .iter()
-                    .enumerate()
-                    .map(|(index, f)| build_convertible_field(f, meta, index))
-                    .try_collect()?,
+                fields: extract_convertible_fields(
+                    &variant.fields,
+                    meta.method,
+                    &meta.other_type(),
+                )?,
             })
         })
         .try_collect()

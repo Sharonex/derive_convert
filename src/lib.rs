@@ -1,6 +1,7 @@
 use derive_into::try_convert_derive;
 use syn::{DeriveInput, parse_macro_input};
 
+mod attribute_parsing;
 mod derive_into;
 mod enum_convert;
 mod struct_convert;

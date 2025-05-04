@@ -1,177 +1,15 @@
-use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::{ToTokens, format_ident, quote, quote_spanned};
-use syn::{DeriveInput, Error, Field, Ident, Path, spanned::Spanned};
+use proc_macro2::TokenStream as TokenStream2;
+use quote::{quote, quote_spanned};
+use syn::{DeriveInput, Path};
 
 use crate::{
+    attribute_parsing::{
+        conversion_field::{ConvertibleField, FieldConversionMethod},
+        conversion_meta::{ConversionMeta, extract_conversions},
+    },
     enum_convert::implement_all_enum_conversions,
     struct_convert::implement_all_struct_conversions,
-    util::{
-        extract_single_path_attribute, field_has_attribute, get_field_value, has_attribute,
-        is_surrounding_type,
-    },
 };
-
-#[derive(Clone)]
-enum FieldConversionMethod {
-    Plain,
-    UnwrapOption,
-    SomeOption,
-    Option,
-    Iterator,
-    HashMap,
-}
-
-#[derive(Clone)]
-pub(super) enum FieldIdentifier {
-    Named(Ident),
-    Unnamed(usize),
-}
-
-impl ToTokens for FieldIdentifier {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match self {
-            FieldIdentifier::Named(ident) => {
-                tokens.extend(quote! { #ident });
-            }
-            FieldIdentifier::Unnamed(index) => {
-                let index = syn::Index::from(*index);
-                tokens.extend(quote! { #index });
-            }
-        }
-    }
-}
-
-impl FieldIdentifier {
-    pub(super) fn as_named(&self) -> TokenStream2 {
-        match self {
-            FieldIdentifier::Named(ident) => quote! { #ident },
-            FieldIdentifier::Unnamed(index) => {
-                let field_name = format_ident!("field{}", index);
-                quote! { #field_name }
-            }
-        }
-    }
-}
-
-#[derive(Clone)]
-pub(super) struct ConvertibleField {
-    pub(super) source_name: FieldIdentifier,
-    span: Span,
-    skip: bool,
-    method: FieldConversionMethod,
-    pub(super) target_name: FieldIdentifier,
-}
-
-fn decide_field_method(field: &Field, is_from: bool) -> syn::Result<FieldConversionMethod> {
-    let is_option = is_surrounding_type(&field.ty, "Option");
-    let is_vec = is_surrounding_type(&field.ty, "Vec");
-    let is_hash_map = is_surrounding_type(&field.ty, "HashMap");
-
-    if field_has_attribute(field, "unwrap") {
-        match (is_option, is_from) {
-            (true, false) => {
-                return Ok(FieldConversionMethod::UnwrapOption);
-            }
-            (true, true) => {
-                return Ok(FieldConversionMethod::SomeOption);
-            }
-            (false, true) => {
-                return Ok(FieldConversionMethod::UnwrapOption);
-            }
-            _ => {
-                return Err(Error::new_spanned(
-                    &field.ty,
-                    "Cannot unwrap non-Option field",
-                ));
-            }
-        }
-    }
-
-    if is_option {
-        return Ok(FieldConversionMethod::Option);
-    }
-    if is_vec {
-        return Ok(FieldConversionMethod::Iterator);
-    }
-
-    if is_hash_map {
-        return Ok(FieldConversionMethod::HashMap);
-    }
-
-    Ok(FieldConversionMethod::Plain)
-}
-
-#[derive(Clone)]
-pub(super) struct ConversionMeta {
-    pub(super) source_name: Path,
-    pub(super) target_name: Path,
-    pub(super) method: ConversionMethod,
-    // Wether we add ..Default::default() to conversions
-    pub(super) default_allowed: bool,
-}
-
-#[derive(Clone)]
-pub(super) enum ConversionMethod {
-    Into,
-    TryInto,
-    From,
-    TryFrom,
-}
-
-impl ConversionMethod {
-    pub(super) fn is_from(&self) -> bool {
-        matches!(self, ConversionMethod::From | ConversionMethod::TryFrom)
-    }
-
-    pub(super) fn is_falliable(&self) -> bool {
-        matches!(self, ConversionMethod::TryInto | ConversionMethod::TryFrom)
-    }
-}
-
-fn ident_to_path(ident: &syn::Ident) -> syn::Path {
-    syn::Path {
-        leading_colon: None,
-        segments: std::iter::once(syn::PathSegment {
-            ident: ident.clone(),
-            arguments: syn::PathArguments::None,
-        })
-        .collect(),
-    }
-}
-
-fn extract_conversions(ast: &DeriveInput) -> Vec<ConversionMeta> {
-    ast.attrs
-        .iter()
-        .filter_map(|attr| {
-            let (other_type, method) = extract_single_path_attribute(attr, "into")
-                .map(|t| (t, ConversionMethod::Into))
-                .or_else(|| {
-                    extract_single_path_attribute(attr, "try_into")
-                        .map(|t| (t, ConversionMethod::TryInto))
-                })
-                .or_else(|| {
-                    extract_single_path_attribute(attr, "from").map(|t| (t, ConversionMethod::From))
-                })
-                .or_else(|| {
-                    extract_single_path_attribute(attr, "try_from")
-                        .map(|t| (t, ConversionMethod::TryFrom))
-                })?;
-
-            let (source_name, target_name) = if method.is_from() {
-                (other_type, ident_to_path(&ast.ident))
-            } else {
-                (ident_to_path(&ast.ident), other_type)
-            };
-
-            Some(ConversionMeta {
-                source_name,
-                target_name,
-                method,
-                default_allowed: has_attribute(attr, "default"),
-            })
-        })
-        .collect()
-}
 
 pub(super) fn field_falliable_conversion(
     ConvertibleField {
@@ -347,36 +185,6 @@ pub(super) fn field_infalliable_conversion(
             }
         }
     }
-}
-pub(super) fn build_convertible_field(
-    field: &Field,
-    meta: &ConversionMeta,
-    index: usize,
-) -> syn::Result<ConvertibleField> {
-    let field_name = field
-        .ident
-        .clone()
-        .map(FieldIdentifier::Named)
-        .unwrap_or(FieldIdentifier::Unnamed(index));
-
-    let other_field_name = get_field_value(field, "rename")
-        .map(FieldIdentifier::Named)
-        .unwrap_or_else(|| field_name.clone());
-
-    let skip = field_has_attribute(field, "skip");
-    let (source_name, target_name) = if meta.method.is_from() {
-        (other_field_name.clone(), field_name.clone())
-    } else {
-        (field_name.clone(), other_field_name.clone())
-    };
-
-    Ok(ConvertibleField {
-        source_name,
-        target_name,
-        span: field.span(),
-        skip,
-        method: decide_field_method(field, meta.method.is_from())?,
-    })
 }
 
 pub(super) fn build_field_conversions(
