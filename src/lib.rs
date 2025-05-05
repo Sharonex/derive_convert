@@ -47,7 +47,6 @@ mod util;
  | `#[convert(from(path = "Type"))]` | Implements `From<Type> for Self` |
  | `#[convert(try_into(path = "Type"))]` | Implements `TryFrom<Self> for Type` |
  | `#[convert(try_from(path = "Type"))]` | Implements `TryFrom<Type> for Self` |
- | `#[convert(into(path = "Type", default))]` | Uses `Default::default()` for unmapped fields |
 
  Multiple conversion attributes can be specified for a single type:
 
@@ -166,7 +165,7 @@ struct ApiModel {
  use derive_into::Convert;
  use std::collections::HashMap;
 
- ##[derive(Hash, Eq, PartialEq)]
+ #[derive(Hash, Eq, PartialEq)]
  struct CustomString(String);
 
  impl From<String> for CustomString {
