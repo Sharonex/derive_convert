@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{DataStruct, spanned::Spanned};
@@ -38,7 +37,7 @@ pub(super) fn implement_all_struct_conversions(
                 )?,
             )
         })
-        .try_collect()?;
+        .collect::<Result<_, _>>()?;
 
     Ok(quote! {
         #(#conversion_impls)*

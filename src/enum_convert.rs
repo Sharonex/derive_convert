@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::DataEnum;
@@ -22,7 +21,7 @@ pub(super) fn implement_all_enum_conversions(
                 extract_enum_variants(data_enum, conversion.method, &conversion.other_type())?;
             implement_enum_conversion(conversion.clone(), &variants)
         })
-        .try_collect()?;
+        .collect::<Result<_, _>>()?;
 
     Ok(quote! {
         #(#conversion_impls)*
