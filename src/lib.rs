@@ -59,6 +59,8 @@ mod util;
  Multiple conversion attributes can be specified for a single type:
 
  ```rust
+ use derive_into::Convert;
+
  #[derive(Convert)]
  #[convert(into(path = "ApiModel"))]
  #[convert(try_from(path = "DbModel"))]
@@ -99,6 +101,8 @@ mod util;
  Functions specified with `with_func` must accept a reference to the source type:
 
  ```rust
+ use derive_into::Convert;
+
  #[derive(Convert)]
  #[convert(try_from(path = "ApiModel"))]
  struct Product {
@@ -123,6 +127,8 @@ mod util;
  ### Option and Vec
 
  ```rust
+ use derive_into::Convert;
+
  #[derive(Convert)]
  #[convert(into(path = "Target"))]
  struct Source {
@@ -140,6 +146,8 @@ mod util;
  ### HashMap
 
  ```rust
+ use std::collections::HashMap;
+
  #[derive(Convert)]
  #[convert(into(path = "Target"))]
  struct Source {
@@ -155,6 +163,8 @@ mod util;
  ## Enum Conversion
 
  ```rust
+ use derive_into::Convert;
+
  #[derive(Convert)]
  #[convert(into(path = "TargetEnum"))]
  enum SourceEnum {
@@ -193,6 +203,8 @@ mod util;
  Enum conversion with variant renaming:
 
  ```rust
+ use derive_into::Convert;
+
  #[derive(Convert)]
  #[convert(into(path = "TargetEnum"))]
  enum SourceEnum {
@@ -221,5 +233,6 @@ mod tests {
         t.pass("tests/cases/test_complex_conversions.rs");
         t.pass("tests/cases/test_enum_conversions.rs");
         t.pass("tests/cases/test_struct_conversions.rs");
+        t.pass("tests/cases/test_field_attributes.rs");
     }
 }
