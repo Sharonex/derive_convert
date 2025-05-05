@@ -19,6 +19,9 @@ struct ConvertFieldAttr {
     unwrap: bool,
 
     #[darling(default)]
+    unwrap_or_default: bool,
+
+    #[darling(default)]
     default: bool,
 
     // Add any other field attributes you need
@@ -47,6 +50,9 @@ struct ConvertField {
     unwrap: bool,
 
     #[darling(default)]
+    unwrap_or_default: bool,
+
+    #[darling(default)]
     with_func: Option<syn::Path>,
 
     // Different conversion types
@@ -67,6 +73,7 @@ struct ConvertField {
 pub(crate) enum FieldConversionMethod {
     Plain,
     UnwrapOption,
+    UnwrapOrDefault,
     SomeOption,
     Option,
     Iterator,
@@ -149,6 +156,12 @@ pub(crate) fn extract_convertible_fields(
             .as_ref()
             .map_or(convert_field.unwrap, |attrs| attrs.unwrap);
 
+        let unwrap_or_default = field_conv_attrs
+            .as_ref()
+            .map_or(convert_field.unwrap_or_default, |attrs| {
+                attrs.unwrap_or_default
+            });
+
         let default = field_conv_attrs
             .as_ref()
             .map_or(convert_field.default, |attrs| attrs.default);
@@ -173,7 +186,7 @@ pub(crate) fn extract_convertible_fields(
             .unwrap_or_else(|| source_name.clone());
 
         // Determine field conversion method
-        let method = decide_field_method(field, is_from, unwrap)?;
+        let method = decide_field_method(field, is_from, unwrap, unwrap_or_default)?;
 
         let conversion_func = field_conv_attrs
             .as_ref()
@@ -216,21 +229,33 @@ pub(crate) fn decide_field_method(
     field: &Field,
     is_from: bool,
     unwrap: bool,
+    unwrap_or_default: bool,
 ) -> syn::Result<FieldConversionMethod> {
     let is_option = is_surrounding_type(&field.ty, "Option");
     let is_vec = is_surrounding_type(&field.ty, "Vec");
     let is_hash_map = is_surrounding_type(&field.ty, "HashMap");
 
-    if unwrap {
+    if unwrap && unwrap_or_default {
+        return Err(syn::Error::new_spanned(
+            &field.ty,
+            "Cannot use both unwrap and unwrap_or_default",
+        ));
+    }
+
+    let unwrap_option = unwrap
+        .then_some(FieldConversionMethod::UnwrapOption)
+        .or(unwrap_or_default.then_some(FieldConversionMethod::UnwrapOrDefault));
+
+    if let Some(unwrap) = unwrap_option {
         match (is_option, is_from) {
             (true, false) => {
-                return Ok(FieldConversionMethod::UnwrapOption);
+                return Ok(unwrap);
             }
             (true, true) => {
                 return Ok(FieldConversionMethod::SomeOption);
             }
             (false, true) => {
-                return Ok(FieldConversionMethod::UnwrapOption);
+                return Ok(unwrap);
             }
             _ => {
                 return Err(syn::Error::new_spanned(

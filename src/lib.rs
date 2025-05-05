@@ -97,6 +97,7 @@ mod util;
  | `#[convert(skip)]` | Excludes field from conversion |
  | `#[convert(default)]` | Uses `Default::default()` for this field |
  | `#[convert(unwrap)]` | Unwraps `Option` (`try_from` fails if `None`) |
+ | `#[convert(unwrap_or_default)]` | Automatically calls unwrap_or_default on `Option` value before converting it |
  | `#[convert(with_func = "func_name")]` | Uses custom conversion function |
 
  ### Custom Conversion Functions

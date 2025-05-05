@@ -100,6 +100,7 @@ Common field-level attributes:
 | Attribute | Description |
 |-----------|-------------|
 | `#[convert(rename = "new_name")]` | Map this field to a differently named field in the target type |
+| `#[convert(unwrap_or_default)]` | Automatically calls unwrap_or_default on `Option` value before converting it |
 | `#[convert(unwrap)]` | Automatically unwrap an `Option` value (fails in `try_from` if `None`) |
 | `#[convert(skip)]` | Skip this field during conversion (target must provide a default) |
 | `#[convert(default)]` | Use default value for this field during conversion |
@@ -197,6 +198,32 @@ struct Target {
     opt_value: Option<Number>,
     vec_values: Vec<Number>,
 }
+```
+### Using UnwrapOrDefault for Options
+
+```rust
+use derive_into::Convert;
+
+#[derive(Convert)]
+#[convert(try_from(path = "Source"))]
+struct Target {
+    #[convert(unwrap_or_default)]
+    value: u32,
+}
+
+struct Source {
+    value: Option<u32>,
+}
+
+// This will succeed
+let source = Source { value: None };
+let target: Result<Target, _> = Target::try_from(source);
+assert!(target.is_ok());
+
+// This will fail because value is None
+let source = Source { value: None };
+let target: Result<Target, _> = Target::try_from(source);
+assert!(target.is_err());
 ```
 
 ### Using Unwrap for Options

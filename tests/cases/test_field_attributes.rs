@@ -101,6 +101,21 @@ struct TargetUnwrap {
     value: String,
 }
 
+// =================== Test 4.5: unwrap attribute ===================
+#[derive(Convert, Debug, PartialEq)]
+#[convert(into(path = "TargetUnwrapOrDefault"))]
+#[convert(try_from(path = "TargetUnwrapOrDefault"))]
+struct SourceUnwrapOrDefault {
+    id: u32,
+    #[convert(unwrap_or_default)]
+    value: Option<String>,
+}
+
+#[derive(Convert, Debug, PartialEq)]
+struct TargetUnwrapOrDefault {
+    id: u32,
+    value: String,
+}
 // =================== Test 5: with_func attribute ===================
 #[derive(Convert, Debug, PartialEq)]
 #[convert(into(path = "TargetWithFunc"))]
@@ -338,6 +353,32 @@ fn test_unwrap() {
     assert_eq!(source.value, Some("Another Value".to_string()));
 
     println!("  'unwrap' attribute tests passed!");
+}
+
+fn test_unwrap_or_default() {
+    println!("Testing 'unwrap_or_default' attribute...");
+
+    // Test Into (Option<T> to T) - unwrapping
+    let source = SourceUnwrap { id: 1, value: None };
+
+    let target: TargetUnwrap = source.into();
+    assert_eq!(target.id, 1);
+    assert_eq!(target.value, "");
+
+    // Test TryFrom (T to Option<T>) - wrapping with Some
+    let target = TargetUnwrap {
+        id: 2,
+        value: "Another Value".to_string(),
+    };
+
+    let source_result = SourceUnwrap::try_from(target);
+    assert!(source_result.is_ok());
+
+    let source = source_result.unwrap();
+    assert_eq!(source.id, 2);
+    assert_eq!(source.value, Some("Another Value".to_string()));
+
+    println!("  'unwrap_or_default' attribute tests passed!");
 }
 
 fn test_with_func() {

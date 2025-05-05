@@ -89,6 +89,17 @@ pub(super) fn field_falliable_conversion(
                 )?,
             }
         }
+        FieldConversionMethod::UnwrapOrDefault => {
+            quote_spanned! { span =>
+                #named_start #source_name.unwrap_or_default().try_into().map_err(|e|
+                    format!("Failed trying to convert {} to {}: {:?}",
+                        stringify!(#source_name),
+                        stringify!(#target_type),
+                        e,
+                    )
+                )?,
+            }
+        }
         FieldConversionMethod::SomeOption => {
             quote_spanned! { span =>
                 #named_start Some(#source_name.try_into().map_err(|e|
@@ -196,6 +207,11 @@ pub(super) fn field_infalliable_conversion(
                         stringify!(#target_type),
                     ).as_str()
                 ).into(),
+            }
+        }
+        FieldConversionMethod::UnwrapOrDefault => {
+            quote_spanned! { span =>
+                #named_start #source_name.unwrap_or_default().into(),
             }
         }
         FieldConversionMethod::SomeOption => {
