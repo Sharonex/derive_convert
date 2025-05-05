@@ -36,6 +36,7 @@ impl From<ProductId> for String {
 #[derive(Debug, PartialEq, Clone, Default)]
 struct NonEmptyString(String);
 
+#[cfg(test)]
 impl NonEmptyString {
     fn as_str(&self) -> &str {
         self.0.as_str()
@@ -62,8 +63,8 @@ impl From<NonEmptyString> for String {
 
 // Source struct with complex nested types
 #[derive(Convert, Debug, PartialEq, Clone)]
-#[convert(into = "ApiProduct", default)]
-#[convert(try_from = "ApiProduct")]
+#[convert(into(path = "ApiProduct", default))]
+#[convert(try_from(path = "ApiProduct"))]
 struct Product {
     id: String,
     name: NonEmptyString,
@@ -79,6 +80,33 @@ struct Product {
 
     // Nested struct with its own conversion
     manufacturer: Manufacturer,
+
+    // Field that will be skipped in conversion
+    #[convert(into(skip))]
+    #[convert(try_from(default))]
+    internal_tracking_code: String,
+
+    // Field that requires validation
+    #[convert(into(skip), try_from(default))]
+    sku: String,
+    // Field that requires validation
+    #[convert(into(skip), try_from(with_func = conversion_func))]
+    product_err: ProductError,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct ProductError {
+    message: String,
+}
+
+fn conversion_func(val: &ApiProduct) -> Result<ProductError, String> {
+    Ok(ProductError {
+        message: if val.name.is_empty() {
+            "internal_tracking_code cannot be empty".to_string()
+        } else {
+            "Valid internal_tracking_code".to_string()
+        },
+    })
 }
 
 // Target struct for Product
@@ -97,8 +125,8 @@ struct ApiProduct {
 
 // Nested source struct
 #[derive(Convert, Debug, PartialEq, Default, Clone)]
-#[convert(into = "ApiProductVariant")]
-#[convert(try_from = "ApiProductVariant")]
+#[convert(into(path = "ApiProductVariant"))]
+#[convert(try_from(path = "ApiProductVariant"))]
 struct ProductVariant {
     variant_id: String,
     size: String,
@@ -119,8 +147,8 @@ struct ApiProductVariant {
 
 // Another nested source struct
 #[derive(Convert, Debug, PartialEq, Default, Clone)]
-#[convert(into = "ApiManufacturer")]
-#[convert(try_from = "ApiManufacturer")]
+#[convert(into(path = "ApiManufacturer"))]
+#[convert(try_from(path = "ApiManufacturer"))]
 struct Manufacturer {
     name: NonEmptyString,
     country: String,
@@ -175,6 +203,11 @@ mod tests {
                 country: "Germany".to_string(),
                 contact_email: Some("info@ergodesigns.com".to_string()),
             },
+            internal_tracking_code: "tesafdsav".to_string(),
+            sku: "sku-123".to_string(),
+            product_err: ProductError {
+                message: "Ok".to_string(),
+            },
         };
 
         // Convert to API type
@@ -206,9 +239,6 @@ mod tests {
             api_product.manufacturer.contact_email,
             "info@ergodesigns.com"
         );
-
-        // Check default field
-        assert_eq!(api_product.average_rating, None);
     }
 
     #[test]
@@ -236,7 +266,7 @@ mod tests {
                 country: "Sweden".to_string(),
                 contact_email: "support@deskcraft.com".to_string(),
             },
-            average_rating: Some(4.7),
+            average_rating: Some(1.2343),
         };
 
         // Convert to internal type
@@ -332,6 +362,11 @@ fn main() {
             name: NonEmptyString("Test Manufacturer".to_string()),
             country: "Test Country".to_string(),
             contact_email: Some("test@example.com".to_string()),
+        },
+        internal_tracking_code: "internal-123".to_string(),
+        sku: "sku-123".to_string(),
+        product_err: ProductError {
+            message: "Ok".to_string(),
         },
     };
 

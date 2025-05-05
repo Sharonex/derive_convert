@@ -3,19 +3,20 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{DataStruct, spanned::Spanned};
 
-use crate::derive_into::{ConversionMeta, build_convertible_field, build_field_conversions};
+use crate::{
+    attribute_parsing::{
+        conversion_field::extract_convertible_fields, conversion_meta::ConversionMeta,
+    },
+    derive_into::build_field_conversions,
+};
 
 pub(super) fn implement_all_struct_conversions(
     data_struct: &DataStruct,
     conversions: Vec<ConversionMeta>,
 ) -> syn::Result<TokenStream2> {
-    let (fields, named_struct) = match &data_struct.fields {
-        syn::Fields::Named(fields_named) => {
-            (fields_named.named.iter().cloned().collect::<Vec<_>>(), true)
-        }
-        syn::Fields::Unnamed(fields_unnamed) => {
-            (fields_unnamed.unnamed.iter().cloned().collect(), false)
-        }
+    let named_struct = match &data_struct.fields {
+        syn::Fields::Named(_) => true,
+        syn::Fields::Unnamed(_) => false,
         syn::Fields::Unit => panic!("Unit structs are not supported for conversion"),
     };
 
@@ -29,11 +30,11 @@ pub(super) fn implement_all_struct_conversions(
                     &conversion,
                     named_struct,
                     true,
-                    &fields
-                        .iter()
-                        .enumerate()
-                        .map(|(index, field)| build_convertible_field(field, &conversion, index))
-                        .try_collect()?,
+                    &extract_convertible_fields(
+                        &data_struct.fields,
+                        conversion.method,
+                        &conversion.other_type(),
+                    )?,
                 )?,
             )
         })

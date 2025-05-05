@@ -33,8 +33,8 @@ impl From<Email> for String {
 
 // Source struct with a variety of field types and conversion attributes
 #[derive(Convert, Debug, PartialEq)]
-#[convert(into = "UserRecord", default)] // Infallible conversion to UserRecord
-#[convert(try_from = "UserRecord")] // Fallible conversion from UserRecord
+#[convert(into(path = "UserRecord", default))] // Infallible conversion to UserRecord
+#[convert(try_from(path = "UserRecord"))] // Fallible conversion from UserRecord
 struct User {
     // Basic field with direct mapping
     name: String,

@@ -25,8 +25,8 @@ impl From<u16> for Number {
     }
 }
 #[derive(Convert, Debug, PartialEq)]
-#[convert(into = "B", default)]
-#[convert(try_from = "B")]
+#[convert(into(path = "B", default))]
+#[convert(try_from(path = "B"))]
 pub struct A {
     #[convert(unwrap)]
     pub normal: Option<u8>,
@@ -50,14 +50,14 @@ pub struct B {
 }
 
 #[derive(Convert, Debug)]
-#[convert(into = "D")]
+#[convert(into(path = "D"))]
 pub struct C(Option<u8>, u8);
 
 #[derive(Default, Debug, PartialEq)]
 pub struct D(Option<Number>, Number);
 
 #[derive(Convert)]
-#[convert(into = "F")]
+#[convert(into(path = "F"))]
 enum E {
     Variant1(A),
     #[convert(rename = "VariantRenamed")]
