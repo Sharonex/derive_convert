@@ -60,80 +60,55 @@ pub(super) fn field_falliable_conversion(
         };
     }
 
+    let map_err = quote! {
+        map_err(|e|
+            format!("Failed trying to convert {} to {}: {:?}",
+                stringify!(#source_name),
+                stringify!(#target_type),
+                e,
+            )
+        )
+    };
+
+    // Then use it in each match arm
     match method {
         FieldConversionMethod::Plain => quote_spanned! { span =>
-            #named_start #source_name.try_into().map_err(|e|
-                    format!("Failed trying to convert {} to {}: {:?}",
-                        stringify!(#source_name),
-                        stringify!(#target_type),
-                        e,
-                    )
-                )?,
+            #named_start #source_name.try_into().#map_err?,
         },
         FieldConversionMethod::UnwrapOption => {
             quote_spanned! { span =>
-                #named_start #source_name.ok_or_else(Err(
-                    format!("Failed trying to convert {} to {}: {:?}",
+                #named_start #source_name.ok_or_else(||
+                    format!("Failed trying to convert {} to {}: None value",
                         stringify!(#source_name),
                         stringify!(#target_type),
-                        e,
-                    ))
+                    )
                 )
                 .try_into()
-                .map_err(|e|
-                    format!("Failed trying to convert {} to {}: {:?}",
-                        stringify!(#source_name),
-                        stringify!(#target_type),
-                        e,
-                    )
-                )?,
+                .#map_err?,
             }
         }
         FieldConversionMethod::UnwrapOrDefault => {
             quote_spanned! { span =>
-                #named_start #source_name.unwrap_or_default().try_into().map_err(|e|
-                    format!("Failed trying to convert {} to {}: {:?}",
-                        stringify!(#source_name),
-                        stringify!(#target_type),
-                        e,
-                    )
-                )?,
+                #named_start #source_name.unwrap_or_default().try_into().#map_err?,
             }
         }
         FieldConversionMethod::SomeOption => {
             quote_spanned! { span =>
-                #named_start Some(#source_name.try_into().map_err(|e|
-                    format!("Failed trying to convert {} to {}: {:?}",
-                        stringify!(#source_name),
-                        stringify!(#target_type),
-                        e,
-                    )
-                )?),
+                #named_start Some(#source_name.try_into().#map_err?),
             }
         }
         FieldConversionMethod::Option => {
             quote_spanned! { span =>
-                #named_start #source_name.map(TryInto::try_into).transpose().map_err(|e|
-                    format!("Failed trying to convert {} to {}: {:?}",
-                        stringify!(#source_name),
-                        stringify!(#target_type),
-                        e,
-                    )
-                )?,
+                #named_start #source_name.map(TryInto::try_into).transpose().#map_err?,
             }
         }
         FieldConversionMethod::Iterator => {
             quote_spanned! { span =>
-                #named_start #source_name.into_iter().map(TryInto::try_into).try_collect().map_err(|e|
-                    format!("Failed trying to convert {} to {}: {:?}",
-                        stringify!(#source_name),
-                        stringify!(#target_type),
-                        e,
-                    )
-                )?,
+                #named_start #source_name.into_iter().map(TryInto::try_into).try_collect().#map_err?,
             }
         }
         FieldConversionMethod::HashMap => {
+            // For HashMap, you'll need separate error messages for keys and values
             quote_spanned! { span =>
                 #named_start {
                     let mut result = ::std::collections::HashMap::new();
