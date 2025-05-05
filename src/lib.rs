@@ -16,13 +16,6 @@ mod util;
  This crate provides the `#[derive(Convert)]` macro that automates implementations of
  conversion traits (`From`, `Into`, `TryFrom`, `TryInto`) between types.
 
- ## Installation
-
- ```toml
- [dependencies]
- derive-into = "0.1.0"
- ```
-
  ## Basic Usage
 
  ```rust
@@ -58,14 +51,25 @@ mod util;
 
  Multiple conversion attributes can be specified for a single type:
 
- ```rust
+ ```
  use derive_into::Convert;
+
+ struct ApiModel {
+     version: String,
+     name: String,
+ }
+
+ struct DbModel {
+     version: String,
+     name: String,
+ }
 
  #[derive(Convert)]
  #[convert(into(path = "ApiModel"))]
  #[convert(try_from(path = "DbModel"))]
  struct DomainModel {
-     // fields
+     version: String,
+     name: String,
  }
  ```
 
@@ -74,17 +78,17 @@ mod util;
  Field attributes can be applied at three different scopes:
 
  1. **Global scope** - applies to all conversions
- ```rust
+ ```text
  #[convert(rename = "new_name")]
  ```
 
  2. **Conversion type scope** - applies to a specific conversion type
- ```rust
+ ```text
  #[convert(try_from(skip))]
  ```
 
  3. **Specific conversion scope** - applies to a specific conversion path
- ```rust
+ ```text
  #[convert(try_from(path = "ApiModel", skip))]
  ```
 
@@ -103,15 +107,21 @@ mod util;
  ```rust
  use derive_into::Convert;
 
+struct ValidatedType(String);
+
+struct ApiModel {
+    field: String,
+}
+
  #[derive(Convert)]
  #[convert(try_from(path = "ApiModel"))]
  struct Product {
-     #[convert(try_from(with_func = "validate_field"))]
+     #[convert(try_from(rename = "field", with_func = "validate_field"))]
      validated: ValidatedType,
  }
 
  fn validate_field(source: &ApiModel) -> Result<ValidatedType, String> {
-     // Custom validation/conversion logic
+    Ok(ValidatedType(source.field.clone()))
  }
  ```
 
@@ -128,6 +138,13 @@ mod util;
 
  ```rust
  use derive_into::Convert;
+
+ struct Number(u8);
+ impl From<u8> for Number {
+     fn from(n: u8) -> Self {
+         Number(n)
+     }
+ }
 
  #[derive(Convert)]
  #[convert(into(path = "Target"))]
@@ -146,7 +163,25 @@ mod util;
  ### HashMap
 
  ```rust
+ use derive_into::Convert;
  use std::collections::HashMap;
+
+ ##[derive(Hash, Eq, PartialEq)]
+ struct CustomString(String);
+
+ impl From<String> for CustomString {
+     fn from(s: String) -> Self {
+         CustomString(s)
+     }
+ }
+
+ struct CustomInt(u32);
+
+ impl From<u32> for CustomInt {
+     fn from(i: u32) -> Self {
+         CustomInt(i)
+     }
+ }
 
  #[derive(Convert)]
  #[convert(into(path = "Target"))]
@@ -177,6 +212,16 @@ mod util;
      },
      Unit,
  }
+
+ enum TargetEnum {
+     Variant1(u32),
+     RenamedVariant {
+         value: String,
+         renamed_field: u8,
+     },
+     Unit,
+ }
+
  ```
 
  Derive macro for generating conversion implementations between similar types.
@@ -198,21 +243,11 @@ mod util;
      #[convert(rename = "full_name")]
      name: String,
  }
- ```
 
- Enum conversion with variant renaming:
-
- ```rust
- use derive_into::Convert;
-
- #[derive(Convert)]
- #[convert(into(path = "TargetEnum"))]
- enum SourceEnum {
-     Variant1(u32),
-     #[convert(rename = "RenamedVariant")]
-     Variant2 { value: String },
+ struct Destination {
+     id: u32,
+     full_name: String,
  }
- ```
 */
 #[proc_macro_derive(Convert, attributes(convert))]
 pub fn derive_into(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
