@@ -31,7 +31,7 @@ pub(super) fn implement_all_enum_conversions(
 
 fn implement_enum_conversion(
     meta: ConversionMeta,
-    variants: &Vec<ConversionVariant>,
+    variants: &[ConversionVariant],
 ) -> syn::Result<TokenStream2> {
     let ConversionMeta {
         source_name,
@@ -46,7 +46,7 @@ fn implement_enum_conversion(
         quote! {}
     };
 
-    let variant_conversions = variants.into_iter().map(|variant| {
+    let variant_conversions = variants.iter().map(|variant| {
         let ConversionVariant {
             source_name: source_variant_name,
             target_name: target_variant_name,
@@ -59,7 +59,7 @@ fn implement_enum_conversion(
         let field_conversions =
             build_field_conversions(&meta, *named_variant, false, fields).unwrap();
 
-        if variant.fields.len() == 0 {
+        if variant.fields.is_empty() {
             return quote! {
                 #source_name::#source_variant_name => #target_name::#target_variant_name,
             };

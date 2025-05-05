@@ -154,8 +154,7 @@ pub(crate) fn extract_convertible_fields(
             .map_or(convert_field.default, |attrs| attrs.default);
 
         // Skip applies if either top-level or field-specific skip is true
-        let skip =
-            convert_field.skip || field_conv_attrs.as_ref().map_or(false, |attrs| attrs.skip);
+        let skip = convert_field.skip || field_conv_attrs.as_ref().is_some_and(|attrs| attrs.skip);
 
         // Skip if marked with skip
         if skip {

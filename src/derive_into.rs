@@ -225,10 +225,10 @@ pub(super) fn build_field_conversions(
     meta: &ConversionMeta,
     named: bool,
     source_prefix: bool,
-    fields: &Vec<ConvertibleField>,
+    fields: &[ConvertibleField],
 ) -> syn::Result<Vec<TokenStream2>> {
     Ok(fields
-        .into_iter()
+        .iter()
         .map(|field| {
             if meta.method.is_falliable() {
                 field_falliable_conversion(field.clone(), &meta.target_name, named, source_prefix)
