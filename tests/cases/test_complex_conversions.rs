@@ -99,14 +99,14 @@ struct ProductError {
     message: String,
 }
 
-fn conversion_func(val: &ApiProduct) -> ProductError {
-    ProductError {
+fn conversion_func(val: &ApiProduct) -> Result<ProductError, String> {
+    Ok(ProductError {
         message: if val.name.is_empty() {
             "internal_tracking_code cannot be empty".to_string()
         } else {
             "Valid internal_tracking_code".to_string()
         },
-    }
+    })
 }
 
 // Target struct for Product

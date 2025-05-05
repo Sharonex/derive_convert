@@ -50,7 +50,13 @@ pub(super) fn field_falliable_conversion(
 
     if let Some(func) = conversion_func {
         return quote_spanned! { span =>
-            #named_start #func(&source),
+            #named_start #func(&source).map_err(|e|
+                    format!("Failed trying to convert {} to {}: {:?}",
+                        stringify!(#source_name),
+                        stringify!(#target_type),
+                        e,
+                    )
+                )?,
         };
     }
 

@@ -60,17 +60,17 @@ struct ConvAttrs {
 #[darling(attributes(convert))]
 struct Conversions {
     ident: syn::Ident,
-    #[darling(default)]
-    into: Option<ConvAttrs>,
+    #[darling(default, multiple)]
+    into: Vec<ConvAttrs>,
 
-    #[darling(default)]
-    try_into: Option<ConvAttrs>,
+    #[darling(default, multiple)]
+    try_into: Vec<ConvAttrs>,
 
-    #[darling(default)]
-    from: Option<ConvAttrs>,
+    #[darling(default, multiple)]
+    from: Vec<ConvAttrs>,
 
-    #[darling(default)]
-    try_from: Option<ConvAttrs>,
+    #[darling(default, multiple)]
+    try_from: Vec<ConvAttrs>,
 }
 
 pub(crate) fn extract_conversions(ast: &DeriveInput) -> Vec<ConversionMeta> {
@@ -85,7 +85,7 @@ pub(crate) fn extract_conversions(ast: &DeriveInput) -> Vec<ConversionMeta> {
     let mut result = Vec::new();
 
     // Process "into" attribute
-    if let Some(attr) = conversions_data.into {
+    for attr in conversions_data.into {
         result.push(ConversionMeta {
             source_name: ident_to_path(&conversions_data.ident),
             target_name: attr.path,
@@ -95,7 +95,7 @@ pub(crate) fn extract_conversions(ast: &DeriveInput) -> Vec<ConversionMeta> {
     }
 
     // Process "try_into" attribute
-    if let Some(attr) = conversions_data.try_into {
+    for attr in conversions_data.try_into {
         result.push(ConversionMeta {
             source_name: ident_to_path(&conversions_data.ident),
             target_name: attr.path,
@@ -105,7 +105,7 @@ pub(crate) fn extract_conversions(ast: &DeriveInput) -> Vec<ConversionMeta> {
     }
 
     // Process "from" attribute
-    if let Some(attr) = conversions_data.from {
+    for attr in conversions_data.from {
         result.push(ConversionMeta {
             source_name: attr.path,
             target_name: ident_to_path(&conversions_data.ident),
@@ -115,7 +115,7 @@ pub(crate) fn extract_conversions(ast: &DeriveInput) -> Vec<ConversionMeta> {
     }
 
     // Process "try_from" attribute
-    if let Some(attr) = conversions_data.try_from {
+    for attr in conversions_data.try_from {
         result.push(ConversionMeta {
             source_name: attr.path,
             target_name: ident_to_path(&conversions_data.ident),

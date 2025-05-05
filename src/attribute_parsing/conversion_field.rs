@@ -50,17 +50,17 @@ struct ConvertField {
     with_func: Option<syn::Path>,
 
     // Different conversion types
-    #[darling(default)]
-    from: Option<ConvertFieldAttr>,
+    #[darling(default, multiple)]
+    from: Vec<ConvertFieldAttr>,
 
-    #[darling(default)]
-    try_from: Option<ConvertFieldAttr>,
+    #[darling(default, multiple)]
+    try_from: Vec<ConvertFieldAttr>,
 
-    #[darling(default)]
-    into: Option<ConvertFieldAttr>,
+    #[darling(default, multiple)]
+    into: Vec<ConvertFieldAttr>,
 
-    #[darling(default)]
-    try_into: Option<ConvertFieldAttr>,
+    #[darling(default, multiple)]
+    try_into: Vec<ConvertFieldAttr>,
 }
 
 #[derive(Clone)]
@@ -122,19 +122,28 @@ pub(crate) fn extract_convertible_fields(
         };
 
         // Get the specific conversion attributes based on conversion type
-        let mut field_conv_attrs = match conversion_type {
+        let field_conv_attrs: Vec<_> = match conversion_type {
             ConversionMethod::From => convert_field.from,
             ConversionMethod::TryFrom => convert_field.try_from,
             ConversionMethod::Into => convert_field.into,
             ConversionMethod::TryInto => convert_field.try_into,
-        };
-
-        if field_conv_attrs
-            .as_ref()
-            .is_some_and(|attrs| attrs.path.as_ref().is_some_and(|path| path != other_type))
-        {
-            field_conv_attrs = None;
         }
+        .into_iter()
+        .filter(|attrs| !attrs.path.as_ref().is_some_and(|path| path != other_type))
+        .collect();
+
+        let field_conv_attrs = match field_conv_attrs.len() {
+            0 | 1 => field_conv_attrs.first(),
+            _ => {
+                return Err(syn::Error::new(
+                    field.span(),
+                    format!(
+                        "Expected exactly one conversion attribute for field {:?}",
+                        field_conv_attrs
+                    ),
+                ));
+            }
+        };
 
         let unwrap = field_conv_attrs
             .as_ref()
