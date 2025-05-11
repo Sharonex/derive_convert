@@ -48,10 +48,16 @@ pub(super) fn field_falliable_conversion(
         };
     }
 
+    let error_creator = if cfg!(feature = "anyhow") {
+        quote!(anyhow::anyhow!)
+    } else {
+        quote!(format!)
+    };
+
     if let Some(func) = conversion_func {
         return quote_spanned! { span =>
             #named_start #func(&source).map_err(|e|
-                    format!("Failed trying to convert {} to {}: {:?}",
+                    #error_creator("Failed trying to convert {} to {}: {:?}",
                         stringify!(#source_name),
                         stringify!(#target_type),
                         e,
@@ -62,7 +68,7 @@ pub(super) fn field_falliable_conversion(
 
     let map_err = quote! {
         map_err(|e|
-            format!("Failed trying to convert {} to {}: {:?}",
+            #error_creator("Failed trying to convert {} to {}: {:?}",
                 stringify!(#source_name),
                 stringify!(#target_type),
                 e,
@@ -78,7 +84,7 @@ pub(super) fn field_falliable_conversion(
         FieldConversionMethod::UnwrapOption => {
             quote_spanned! { span =>
                 #named_start #source_name.ok_or_else(||
-                    format!("Failed trying to convert {} to {}: None value",
+                    #error_creator("Failed trying to convert {} to {}: None value",
                         stringify!(#source_name),
                         stringify!(#target_type),
                     )
@@ -114,10 +120,10 @@ pub(super) fn field_falliable_conversion(
                     let mut result = ::std::collections::HashMap::new();
                     for (k, v) in #source_name {
                         let key = k.try_into().map_err(|e|
-                            format!("Failed to convert key in HashMap {}: {:?}",
+                            #error_creator("Failed to convert key in HashMap {}: {:?}",
                                 stringify!(#source_name), e))?;
                         let value = v.try_into().map_err(|e|
-                            format!("Failed to convert value in HashMap {}: {:?}",
+                            #error_creator("Failed to convert value in HashMap {}: {:?}",
                                 stringify!(#source_name), e))?;
                         result.insert(key, value);
                     }

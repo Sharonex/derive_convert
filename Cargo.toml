@@ -11,6 +11,8 @@ keywords = ["derive", "convert", "macro", "into", "from"]
 categories = ["development-tools", "rust-patterns"]
 documentation = "https://docs.rs/derive-into"
 
+[features]
+anyhow = []
 
 [lib]
 proc-macro = true
