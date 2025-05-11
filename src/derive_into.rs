@@ -82,7 +82,7 @@ pub(super) fn field_falliable_conversion(
                         stringify!(#source_name),
                         stringify!(#target_type),
                     )
-                )
+                )?
                 .try_into()
                 .#map_err?,
             }
