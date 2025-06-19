@@ -85,8 +85,6 @@ fn implement_enum_conversion(
             impl TryFrom<#source_name> for #target_name {
                 type Error = String;
                 fn try_from(source: #source_name) -> Result<#target_name, Self::Error> {
-                    // Import itertools for try_collect
-                    use itertools::Itertools;
                     Ok(
                         match source {
                             #(#variant_conversions)*

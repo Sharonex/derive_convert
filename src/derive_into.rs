@@ -110,7 +110,7 @@ pub(super) fn field_falliable_conversion(
         }
         FieldConversionMethod::Iterator => {
             quote_spanned! { span =>
-                #named_start #source_name.into_iter().map(TryInto::try_into).try_collect().#map_err?,
+                #named_start #source_name.into_iter().map(TryInto::try_into).collect::<Result<_, _>>().#map_err?,
             }
         }
         FieldConversionMethod::HashMap => {
